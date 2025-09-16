@@ -4,14 +4,21 @@
   "description": "Web scraper for Wayne County tax auction properties",
   "main": "auction-scraper.js",
   "scripts": {
+    "start": "node server.js",
+    "fast": "node fast-server.js",
+    "fast-scrape": "node parallel-scraper.js",
     "test": "node test-scraper.js",
     "scrape": "node run-scraper.js",
-    "dev": "nodemon test-scraper.js",
+    "dev": "nodemon server.js",
+    "dev-fast": "nodemon fast-server.js",
     "install-playwright": "npx playwright install chromium"
   },
   "dependencies": {
-    "playwright": "^1.40.1",
-    "dotenv": "^16.3.1"
+    "compression": "^1.8.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^5.1.0",
+    "playwright": "^1.40.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"

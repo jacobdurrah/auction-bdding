@@ -191,6 +191,13 @@ class WayneCountyAuctionScraper {
                                propertyData.currentBid !== '' &&
                                propertyData.currentBid !== '$0.00';
 
+            // Skip properties that have been removed from auction
+            if (propertyData.status &&
+                (propertyData.status.toLowerCase().includes('removed') ||
+                 propertyData.status === 'Removed from Auction')) {
+                return null;
+            }
+
             return propertyData;
 
         } catch (error) {

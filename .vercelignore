@@ -1,0 +1,10 @@
+node_modules
+.env
+*.json
+*.csv
+!package.json
+!package-lock.json
+!vercel.json
+test-scraper.js
+run-scraper.js
+scraper-cli.js

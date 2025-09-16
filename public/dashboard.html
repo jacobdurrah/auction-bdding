@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wayne County Tax Auction Analytics Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .controls {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .control-group {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .stat-change {
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        .positive { color: #4caf50; }
+        .negative { color: #f44336; }
+
+        .tabs {
+            background: white;
+            border-radius: 12px 12px 0 0;
+            display: flex;
+            overflow-x: auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .tab {
+            padding: 15px 25px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+        }
+
+        .tab:hover {
+            background: #f5f5f5;
+        }
+
+        .tab-content {
+            background: white;
+            border-radius: 0 0 12px 12px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .property-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .property-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 20px;
+            transition: background 0.3s;
+            cursor: pointer;
+        }
+
+        .property-card:hover {
+            background: #e9ecef;
+        }
+
+        .property-info h3 {
+            color: #333;
+            margin-bottom: 5px;
+            font-size: 1.1em;
+        }
+
+        .property-meta {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+        }
+
+        .property-stats {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .property-stat {
+            background: white;
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 0.85em;
+        }
+
+        .property-score {
+            text-align: center;
+            padding: 10px;
+        }
+
+        .score-circle {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5em;
+            font-weight: bold;
+            color: white;
+            margin: 0 auto 10px;
+        }
+
+        .score-high { background: linear-gradient(135deg, #4caf50, #45a049); }
+        .score-medium { background: linear-gradient(135deg, #ff9800, #f57c00); }
+        .score-low { background: linear-gradient(135deg, #f44336, #e53935); }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: 600;
+            margin-right: 5px;
+        }
+
+        .badge-gem { background: #ffeaa7; color: #fdcb6e; }
+        .badge-hot { background: #ff6b6b; color: white; }
+        .badge-nobids { background: #74b9ff; color: white; }
+        .badge-closing { background: #fd79a8; color: white; }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .competition-indicator {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.9em;
+        }
+
+        .competition-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .competition-low { background: #4caf50; }
+        .competition-medium { background: #ff9800; }
+        .competition-high { background: #f44336; }
+
+        .update-info {
+            background: white;
+            border-radius: 8px;
+            padding: 10px 15px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .update-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #4caf50;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .filter-chips {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .chip {
+            background: #e0e0e0;
+            padding: 5px 12px;
+            border-radius: 16px;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .chip.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .chip:hover {
+            background: #d0d0d0;
+        }
+
+        .chip.active:hover {
+            background: #5a67d8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Wayne County Tax Auction Analytics</h1>
+
+        <!-- Navigation Links -->
+        <div style="text-align: center; margin-bottom: 20px;">
+            <a href="/tabs" style="color: white; margin: 0 10px;">Properties View</a>
+            <a href="/dashboard.html" style="color: white; margin: 0 10px; font-weight: bold;">Analytics Dashboard</a>
+        </div>
+
+        <!-- Update Status -->
+        <div class="update-info">
+            <div class="update-status">
+                <div class="status-indicator"></div>
+                <span id="lastUpdate">Loading...</span>
+            </div>
+            <button class="btn" onclick="refreshData()">Refresh Data</button>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <div class="control-group">
+                <label for="budget">Budget</label>
+                <input type="number" id="budget" value="10000" step="1000">
+            </div>
+            <div class="control-group">
+                <label for="closingFilter">Closing Time</label>
+                <select id="closingFilter">
+                    <option value="all">All Properties</option>
+                    <option value="24">Next 24 Hours</option>
+                    <option value="48">Next 48 Hours</option>
+                    <option value="72">Next 72 Hours</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label for="competitionFilter">Competition Level</label>
+                <select id="competitionFilter">
+                    <option value="all">All Levels</option>
+                    <option value="low">Low Competition</option>
+                    <option value="medium">Medium Competition</option>
+                    <option value="high">High Competition</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label for="sortBy">Sort By</label>
+                <select id="sortBy">
+                    <option value="score">Overall Score</option>
+                    <option value="roi">ROI Potential</option>
+                    <option value="price">Price (Low to High)</option>
+                    <option value="closing">Closing Time</option>
+                    <option value="competition">Competition</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Statistics -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Total Properties</div>
+                <div class="stat-value" id="totalProperties">-</div>
+                <div class="stat-change" id="withBids">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Hidden Gems</div>
+                <div class="stat-value" id="hiddenGems">-</div>
+                <div class="stat-change positive">Low competition opportunities</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Hot Properties</div>
+                <div class="stat-value" id="hotProperties">-</div>
+                <div class="stat-change negative">High bid activity</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Avg Competition Score</div>
+                <div class="stat-value" id="avgCompetition">-</div>
+                <div class="stat-change" id="competitionTrend">-</div>
+            </div>
+        </div>
+
+        <!-- Filter Chips -->
+        <div class="filter-chips">
+            <div class="chip active" onclick="setQuickFilter('all')">All</div>
+            <div class="chip" onclick="setQuickFilter('gems')">Hidden Gems</div>
+            <div class="chip" onclick="setQuickFilter('nobids')">No Bids Yet</div>
+            <div class="chip" onclick="setQuickFilter('closing-soon')">Closing Soon</div>
+            <div class="chip" onclick="setQuickFilter('high-roi')">High ROI</div>
+            <div class="chip" onclick="setQuickFilter('hot')">Hot Properties</div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('recommended')">Recommended</button>
+            <button class="tab" onclick="switchTab('all')">All Properties</button>
+            <button class="tab" onclick="switchTab('competition')">Competition Analysis</button>
+            <button class="tab" onclick="switchTab('closing')">By Closing Time</button>
+            <button class="tab" onclick="switchTab('analytics')">Analytics</button>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="tab-content">
+            <div id="tabContent">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Loading auction data...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allData = null;
+        let filteredData = null;
+        let currentTab = 'recommended';
+        let quickFilter = 'all';
+
+        // Load data on page load
+        window.addEventListener('load', () => {
+            loadData();
+            setInterval(updateTimeAgo, 60000); // Update time ago every minute
+        });
+
+        // Add event listeners
+        document.getElementById('budget').addEventListener('change', applyFilters);
+        document.getElementById('closingFilter').addEventListener('change', applyFilters);
+        document.getElementById('competitionFilter').addEventListener('change', applyFilters);
+        document.getElementById('sortBy').addEventListener('change', applyFilters);
+
+        async function loadData() {
+            try {
+                const response = await fetch('/api/analytics/summary');
+                allData = await response.json();
+                
+                updateStats();
+                applyFilters();
+                updateLastUpdateTime();
+            } catch (error) {
+                console.error('Error loading data:', error);
+                document.getElementById('tabContent').innerHTML = `
+                    <div class="loading">
+                        <p style="color: #f44336;">Error loading data. Please try again.</p>
+                    </div>
+                `;
+            }
+        }
+
+        function updateStats() {
+            if (!allData || !allData.stats) return;
+
+            document.getElementById('totalProperties').textContent = allData.stats.total || '-';
+            document.getElementById('withBids').textContent = `${allData.stats.withBids || 0} with bids`;
+            document.getElementById('hiddenGems').textContent = allData.hiddenGems?.length || 0;
+            document.getElementById('hotProperties').textContent = allData.stats.competition?.high || 0;
+            
+            const avgComp = allData.stats.competition ? 
+                Math.round((allData.stats.competition.high * 100 + allData.stats.competition.medium * 50) / allData.stats.total) : 0;
+            document.getElementById('avgCompetition').textContent = avgComp;
+            document.getElementById('competitionTrend').textContent = avgComp > 50 ? 'Rising' : 'Stable';
+            document.getElementById('competitionTrend').className = avgComp > 50 ? 'stat-change negative' : 'stat-change positive';
+        }
+
+        function updateLastUpdateTime() {
+            if (!allData || !allData.lastUpdate) return;
+            
+            const lastUpdate = new Date(allData.lastUpdate);
+            const now = new Date();
+            const diff = (now - lastUpdate) / 1000 / 60; // minutes
+            
+            let timeAgo;
+            if (diff < 1) timeAgo = 'Just now';
+            else if (diff < 60) timeAgo = `${Math.floor(diff)} minutes ago`;
+            else timeAgo = `${Math.floor(diff / 60)} hours ago`;
+            
+            document.getElementById('lastUpdate').textContent = `Last updated: ${timeAgo}`;
+        }
+
+        function applyFilters() {
+            if (!allData || !allData.properties) return;
+
+            const budget = parseInt(document.getElementById('budget').value) || 999999;
+            const closingHours = document.getElementById('closingFilter').value;
+            const competition = document.getElementById('competitionFilter').value;
+            const sortBy = document.getElementById('sortBy').value;
+
+            // Start with all properties
+            filteredData = [...allData.properties];
+
+            // Apply budget filter
+            filteredData = filteredData.filter(p => p.minimumBidNumeric <= budget);
+
+            // Apply quick filter
+            if (quickFilter === 'gems') {
+                filteredData = filteredData.filter(p => p.analytics?.isHiddenGem);
+            } else if (quickFilter === 'nobids') {
+                filteredData = filteredData.filter(p => !p.hasBids);
+            } else if (quickFilter === 'closing-soon') {
+                const cutoff = new Date();
+                cutoff.setHours(cutoff.getHours() + 24);
+                filteredData = filteredData.filter(p => new Date(p.biddingCloses) <= cutoff);
+            } else if (quickFilter === 'high-roi') {
+                filteredData = filteredData.filter(p => p.analytics?.strategy?.profit?.roi > 100);
+            } else if (quickFilter === 'hot') {
+                filteredData = filteredData.filter(p => p.analytics?.competitionLevel === 'HIGH');
+            }
+
+            // Apply closing time filter
+            if (closingHours !== 'all') {
+                const hours = parseInt(closingHours);
+                const cutoff = new Date();
+                cutoff.setHours(cutoff.getHours() + hours);
+                filteredData = filteredData.filter(p => new Date(p.biddingCloses) <= cutoff);
+            }
+
+            // Apply competition filter
+            if (competition !== 'all') {
+                filteredData = filteredData.filter(p => 
+                    p.analytics?.competitionLevel?.toLowerCase() === competition
+                );
+            }
+
+            // Sort data
+            switch (sortBy) {
+                case 'score':
+                    filteredData.sort((a, b) => (b.analytics?.overallScore || 0) - (a.analytics?.overallScore || 0));
+                    break;
+                case 'roi':
+                    filteredData.sort((a, b) => (b.analytics?.strategy?.profit?.roi || 0) - (a.analytics?.strategy?.profit?.roi || 0));
+                    break;
+                case 'price':
+                    filteredData.sort((a, b) => a.minimumBidNumeric - b.minimumBidNumeric);
+                    break;
+                case 'closing':
+                    filteredData.sort((a, b) => new Date(a.biddingCloses) - new Date(b.biddingCloses));
+                    break;
+                case 'competition':
+                    filteredData.sort((a, b) => (a.analytics?.strategy?.competition?.score || 0) - (b.analytics?.strategy?.competition?.score || 0));
+                    break;
+            }
+
+            renderTab();
+        }
+
+        function setQuickFilter(filter) {
+            quickFilter = filter;
+            
+            // Update chip styles
+            document.querySelectorAll('.chip').forEach(chip => {
+                chip.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            applyFilters();
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            
+            // Update tab styles
+            document.querySelectorAll('.tab').forEach(t => {
+                t.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            renderTab();
+        }
+
+        function renderTab() {
+            const content = document.getElementById('tabContent');
+            
+            if (!filteredData || filteredData.length === 0) {
+                content.innerHTML = '<p style="text-align: center; color: #666;">No properties match your criteria</p>';
+                return;
+            }
+
+            switch (currentTab) {
+                case 'recommended':
+                    renderRecommended();
+                    break;
+                case 'all':
+                    renderAllProperties();
+                    break;
+                case 'competition':
+                    renderCompetitionAnalysis();
+                    break;
+                case 'closing':
+                    renderByClosingTime();
+                    break;
+                case 'analytics':
+                    renderAnalytics();
+                    break;
+            }
+        }
+
+        function renderRecommended() {
+            const top10 = filteredData.slice(0, 10);
+            const html = `
+                <h2 style="margin-bottom: 20px;">Top Recommendations</h2>
+                <div class="property-list">
+                    ${top10.map(p => renderPropertyCard(p)).join('')}
+                </div>
+            `;
+            document.getElementById('tabContent').innerHTML = html;
+        }
+
+        function renderAllProperties() {
+            const html = `
+                <h2 style="margin-bottom: 20px;">All Properties (${filteredData.length})</h2>
+                <div class="property-list">
+                    ${filteredData.slice(0, 50).map(p => renderPropertyCard(p)).join('')}
+                </div>
+            `;
+            document.getElementById('tabContent').innerHTML = html;
+        }
+
+        function renderPropertyCard(property) {
+            const score = property.analytics?.overallScore || 0;
+            const scoreClass = score >= 70 ? 'score-high' : score >= 40 ? 'score-medium' : 'score-low';
+            const competition = property.analytics?.competitionLevel || 'UNKNOWN';
+            const competitionClass = competition === 'HIGH' ? 'competition-high' :
+                                    competition === 'MEDIUM' ? 'competition-medium' : 'competition-low';
+
+            const closingTime = new Date(property.biddingCloses);
+            const hoursUntilClosing = (closingTime - new Date()) / (1000 * 60 * 60);
+
+            // Check if property has no bids (currentBid is NONE or missing)
+            const hasNoBids = !property.hasBids || property.currentBid === 'NONE' || !property.currentBid;
+
+            return `
+                <div class="property-card" onclick="showPropertyDetails('${property.auctionId}')">
+                    <div class="property-info">
+                        <h3>
+                            ${property.address}
+                            ${property.analytics?.isHiddenGem ? '<span class="badge badge-gem">Hidden Gem</span>' : ''}
+                            ${hasNoBids ? '<span class="badge badge-nobids">No Bids</span>' : ''}
+                            ${hoursUntilClosing < 24 ? '<span class="badge badge-closing">Closing Soon</span>' : ''}
+                        </h3>
+                        <div class="property-meta">
+                            ${property.city} • Auction #${property.auctionId} • Closes ${closingTime.toLocaleString()}
+                        </div>
+                        <div class="property-stats">
+                            <div class="property-stat">
+                                <strong>Min Bid:</strong> $${property.minimumBidNumeric.toLocaleString()}
+                            </div>
+                            <div class="property-stat">
+                                <strong>Current Bid:</strong> ${!hasNoBids && property.currentBidNumeric ?
+                                    '$' + property.currentBidNumeric.toLocaleString() : 'NONE'}
+                            </div>
+                            <div class="property-stat">
+                                <strong>SEV:</strong> $${property.sevValueNumeric.toLocaleString()}
+                            </div>
+                            ${property.zillow ? `
+                                <div class="property-stat">
+                                    <strong>Zestimate:</strong> $${(property.zillow.zestimate || 0).toLocaleString()}
+                                </div>
+                                ${property.zillow.rentZestimate ? `
+                                    <div class="property-stat">
+                                        <strong>Rent Est:</strong> $${property.zillow.rentZestimate.toLocaleString()}/mo
+                                    </div>
+                                ` : ''}
+                            ` : ''}
+                            ${property.analytics?.strategy?.profit?.roi ? `
+                                <div class="property-stat">
+                                    <strong>ROI:</strong> ${Math.round(property.analytics.strategy.profit.roi)}%
+                                </div>
+                            ` : ''}
+                            <div class="competition-indicator">
+                                <div class="competition-dot ${competitionClass}"></div>
+                                <span>${competition} Competition</span>
+                            </div>
+                        </div>
+                        ${property.zillow && property.zillow.hdpUrl ? `
+                            <div style="margin-top: 10px;">
+                                <a href="${property.zillow.hdpUrl}" target="_blank"
+                                   style="color: #006AFF; text-decoration: none; font-weight: 600;"
+                                   onclick="event.stopPropagation();">
+                                   View on Zillow →
+                                </a>
+                            </div>
+                        ` : ''}
+                        ${property.analytics?.recommendation ? `
+                            <div style="margin-top: 10px; font-weight: 600; color: #667eea;">
+                                ${property.analytics.recommendation}
+                            </div>
+                        ` : ''}
+                    </div>
+                    <div class="property-score">
+                        <div class="score-circle ${scoreClass}">${score}</div>
+                        <div style="font-size: 0.9em; color: #666;">Score</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderCompetitionAnalysis() {
+            const low = filteredData.filter(p => p.analytics?.competitionLevel === 'LOW');
+            const medium = filteredData.filter(p => p.analytics?.competitionLevel === 'MEDIUM');
+            const high = filteredData.filter(p => p.analytics?.competitionLevel === 'HIGH');
+
+            const html = `
+                <h2 style="margin-bottom: 20px;">Competition Analysis</h2>
+                
+                <div style="margin-bottom: 30px;">
+                    <h3 style="color: #4caf50; margin-bottom: 15px;">Low Competition (${low.length})</h3>
+                    <div class="property-list">
+                        ${low.slice(0, 5).map(p => renderPropertyCard(p)).join('')}
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 30px;">
+                    <h3 style="color: #ff9800; margin-bottom: 15px;">Medium Competition (${medium.length})</h3>
+                    <div class="property-list">
+                        ${medium.slice(0, 5).map(p => renderPropertyCard(p)).join('')}
+                    </div>
+                </div>
+
+                <div>
+                    <h3 style="color: #f44336; margin-bottom: 15px;">High Competition (${high.length})</h3>
+                    <div class="property-list">
+                        ${high.slice(0, 5).map(p => renderPropertyCard(p)).join('')}
+                    </div>
+                </div>
+            `;
+            document.getElementById('tabContent').innerHTML = html;
+        }
+
+        function renderByClosingTime() {
+            // Group by closing time
+            const groups = {};
+            filteredData.forEach(p => {
+                const time = p.biddingCloses;
+                if (!groups[time]) groups[time] = [];
+                groups[time].push(p);
+            });
+
+            const sortedTimes = Object.keys(groups).sort((a, b) => new Date(a) - new Date(b));
+
+            const html = `
+                <h2 style="margin-bottom: 20px;">Properties by Closing Time</h2>
+                ${sortedTimes.slice(0, 10).map(time => `
+                    <div style="margin-bottom: 30px;">
+                        <h3 style="color: #667eea; margin-bottom: 15px;">
+                            ${new Date(time).toLocaleString()} (${groups[time].length} properties)
+                        </h3>
+                        <div class="property-list">
+                            ${groups[time].slice(0, 5).map(p => renderPropertyCard(p)).join('')}
+                        </div>
+                    </div>
+                `).join('')}
+            `;
+            document.getElementById('tabContent').innerHTML = html;
+        }
+
+        function renderAnalytics() {
+            const avgScore = filteredData.reduce((sum, p) => sum + (p.analytics?.overallScore || 0), 0) / filteredData.length;
+            const avgROI = filteredData
+                .filter(p => p.analytics?.strategy?.profit?.roi)
+                .reduce((sum, p) => sum + p.analytics.strategy.profit.roi, 0) / 
+                filteredData.filter(p => p.analytics?.strategy?.profit?.roi).length;
+
+            const html = `
+                <h2 style="margin-bottom: 20px;">Analytics Overview</h2>
+                
+                <div class="stats-grid" style="margin-bottom: 30px;">
+                    <div class="stat-card">
+                        <div class="stat-label">Average Score</div>
+                        <div class="stat-value">${Math.round(avgScore)}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Average ROI</div>
+                        <div class="stat-value">${Math.round(avgROI || 0)}%</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Properties < $1000</div>
+                        <div class="stat-value">${filteredData.filter(p => p.minimumBidNumeric < 1000).length}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">With Zillow Data</div>
+                        <div class="stat-value">${filteredData.filter(p => p.zillow).length}</div>
+                    </div>
+                </div>
+
+                <h3 style="margin-bottom: 15px;">Top Performers by Category</h3>
+                
+                <div style="margin-bottom: 20px;">
+                    <h4 style="color: #667eea; margin-bottom: 10px;">Highest ROI</h4>
+                    <div class="property-list">
+                        ${filteredData
+                            .filter(p => p.analytics?.strategy?.profit?.roi)
+                            .sort((a, b) => b.analytics.strategy.profit.roi - a.analytics.strategy.profit.roi)
+                            .slice(0, 3)
+                            .map(p => renderPropertyCard(p))
+                            .join('')}
+                    </div>
+                </div>
+
+                <div>
+                    <h4 style="color: #667eea; margin-bottom: 10px;">Best Value Under $5000</h4>
+                    <div class="property-list">
+                        ${filteredData
+                            .filter(p => p.minimumBidNumeric < 5000)
+                            .sort((a, b) => (b.analytics?.overallScore || 0) - (a.analytics?.overallScore || 0))
+                            .slice(0, 3)
+                            .map(p => renderPropertyCard(p))
+                            .join('')}
+                    </div>
+                </div>
+            `;
+            document.getElementById('tabContent').innerHTML = html;
+        }
+
+        function showPropertyDetails(auctionId) {
+            // In a real implementation, this would show a modal or navigate to a detail page
+            console.log('Show details for auction:', auctionId);
+        }
+
+        async function refreshData() {
+            document.getElementById('tabContent').innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Refreshing data...</p>
+                </div>
+            `;
+            
+            // Trigger a data refresh on the server
+            try {
+                const response = await fetch('/api/analytics/refresh', { method: 'POST' });
+                const result = await response.json();
+                
+                // Reload the data
+                await loadData();
+            } catch (error) {
+                console.error('Error refreshing data:', error);
+            }
+        }
+
+        function updateTimeAgo() {
+            updateLastUpdateTime();
+        }
+    </script>
+</body>
+</html>
