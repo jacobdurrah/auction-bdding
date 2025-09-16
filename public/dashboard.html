@@ -158,24 +158,24 @@
         }
 
         .property-list {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
         }
 
         .property-card {
-            background: #f8f9fa;
+            background: white;
             border-radius: 8px;
-            padding: 15px;
-            display: grid;
-            grid-template-columns: 1fr auto;
-            gap: 20px;
-            transition: background 0.3s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
             cursor: pointer;
+            position: relative;
+            overflow: hidden;
         }
 
         .property-card:hover {
-            background: #e9ecef;
+            transform: translateY(-4px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
         }
 
         .property-info h3 {
@@ -664,28 +664,51 @@
             // Check if property has no bids (currentBid is NONE or missing)
             const hasNoBids = !property.hasBids || property.currentBid === 'NONE' || !property.currentBid;
 
+            // Get image URL from Zillow data or use placeholder
+            const imageUrl = property.images?.primary || property.zillow?.imgSrc ||
+                           'https://via.placeholder.com/300x200/f0f0f0/666?text=No+Image';
+
+            // Build links
+            const auctionLink = property.links?.auction ||
+                              `https://www.waynecountytreasurermi.com/AuctionPropertyDetails.aspx?AI_ID=${property.auctionId}`;
+            const zillowLink = property.links?.zillow || property.zillow?.hdpUrl;
+            const streetViewLink = property.links?.streetView ||
+                                 (property.geocode?.latitude && property.geocode?.longitude ?
+                                  `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${property.geocode.latitude},${property.geocode.longitude}` :
+                                  null);
+
             return `
-                <div class="property-card" onclick="showPropertyDetails('${property.auctionId}')">
-                    <div class="property-info">
-                        <h3>
+                <div class="property-card" style="display: flex; flex-direction: column;">
+                    ${/* Property Image */''}
+                    <div style="width: 100%; height: 200px; overflow: hidden; border-radius: 8px 8px 0 0;">
+                        <img src="${imageUrl}"
+                             alt="${property.address}"
+                             style="width: 100%; height: 100%; object-fit: cover;"
+                             onerror="this.src='https://via.placeholder.com/300x200/f0f0f0/666?text=No+Image'"
+                        />
+                    </div>
+
+                    <div style="padding: 15px; flex: 1; display: flex; flex-direction: column;">
+                        <h3 style="margin: 0 0 10px 0;">
                             ${property.address}
                             ${property.analytics?.isHiddenGem ? '<span class="badge badge-gem">Hidden Gem</span>' : ''}
                             ${hasNoBids ? '<span class="badge badge-nobids">No Bids</span>' : ''}
                             ${hoursUntilClosing < 24 ? '<span class="badge badge-closing">Closing Soon</span>' : ''}
                         </h3>
                         <div class="property-meta">
-                            ${property.city} • Auction #${property.auctionId} • Closes ${closingTime.toLocaleString()}
+                            ${property.city || 'DETROIT'}, MI ${property.zip || ''} • Auction #${property.auctionId}
                         </div>
-                        <div class="property-stats">
+                        <div class="property-meta" style="margin-top: 5px;">
+                            Closes: ${closingTime.toLocaleString()}
+                        </div>
+
+                        <div class="property-stats" style="margin: 15px 0;">
                             <div class="property-stat">
                                 <strong>Min Bid:</strong> $${property.minimumBidNumeric.toLocaleString()}
                             </div>
                             <div class="property-stat">
-                                <strong>Current Bid:</strong> ${!hasNoBids && property.currentBidNumeric ?
+                                <strong>Current:</strong> ${!hasNoBids && property.currentBidNumeric ?
                                     '$' + property.currentBidNumeric.toLocaleString() : 'NONE'}
-                            </div>
-                            <div class="property-stat">
-                                <strong>SEV:</strong> $${property.sevValueNumeric.toLocaleString()}
                             </div>
                             ${property.zillow ? `
                                 <div class="property-stat">
@@ -697,9 +720,9 @@
                                     </div>
                                 ` : ''}
                             ` : ''}
-                            ${property.analytics?.strategy?.profit?.roi ? `
+                            ${property.analytics?.metrics?.roi ? `
                                 <div class="property-stat">
-                                    <strong>ROI:</strong> ${Math.round(property.analytics.strategy.profit.roi)}%
+                                    <strong>ROI:</strong> ${property.analytics.metrics.roi}%
                                 </div>
                             ` : ''}
                             <div class="competition-indicator">
@@ -707,24 +730,45 @@
                                 <span>${competition} Competition</span>
                             </div>
                         </div>
-                        ${property.zillow && property.zillow.hdpUrl ? `
-                            <div style="margin-top: 10px;">
-                                <a href="${property.zillow.hdpUrl}" target="_blank"
-                                   style="color: #006AFF; text-decoration: none; font-weight: 600;"
-                                   onclick="event.stopPropagation();">
-                                   View on Zillow →
-                                </a>
-                            </div>
-                        ` : ''}
+
                         ${property.analytics?.recommendation ? `
-                            <div style="margin-top: 10px; font-weight: 600; color: #667eea;">
+                            <div style="margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 6px; font-size: 0.9em; color: #667eea;">
                                 ${property.analytics.recommendation}
                             </div>
                         ` : ''}
-                    </div>
-                    <div class="property-score">
-                        <div class="score-circle ${scoreClass}">${score}</div>
-                        <div style="font-size: 0.9em; color: #666;">Score</div>
+
+                        ${/* Quick Action Links */''}
+                        <div style="display: flex; gap: 10px; margin-top: auto; padding-top: 10px; border-top: 1px solid #e0e0e0;">
+                            <a href="${auctionLink}"
+                               target="_blank"
+                               style="flex: 1; padding: 8px; text-align: center; background: #667eea; color: white; text-decoration: none; border-radius: 6px; font-size: 0.9em;"
+                               onclick="event.stopPropagation();">
+                               🏠 Auction
+                            </a>
+                            ${zillowLink ? `
+                                <a href="${zillowLink}"
+                                   target="_blank"
+                                   style="flex: 1; padding: 8px; text-align: center; background: #006AFF; color: white; text-decoration: none; border-radius: 6px; font-size: 0.9em;"
+                                   onclick="event.stopPropagation();">
+                                   🏘️ Zillow
+                                </a>
+                            ` : ''}
+                            ${streetViewLink ? `
+                                <a href="${streetViewLink}"
+                                   target="_blank"
+                                   style="flex: 1; padding: 8px; text-align: center; background: #4285f4; color: white; text-decoration: none; border-radius: 6px; font-size: 0.9em;"
+                                   onclick="event.stopPropagation();">
+                                   🚶 Street View
+                                </a>
+                            ` : ''}
+                        </div>
+
+                        ${/* Score Badge */''}
+                        <div style="position: absolute; top: 10px; right: 10px; background: white; border-radius: 50%; padding: 5px;">
+                            <div class="score-circle ${scoreClass}" style="width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; font-weight: bold;">
+                                ${score}
+                            </div>
+                        </div>
                     </div>
                 </div>
             `;
