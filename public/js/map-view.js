@@ -200,6 +200,11 @@ function createPropertyPopup(property, zillowData) {
             <div class="popup-actions">
                 <button class="btn btn-small popup-view-btn">View Details</button>
                 <button class="btn btn-small popup-refresh-btn">Refresh</button>
+                ${zillowData?.geocode?.latitude && zillowData?.geocode?.longitude ?
+                    `<button class="btn btn-small popup-streetview-btn"
+                             onclick="window.open('https://www.google.com/maps/@${zillowData.geocode.latitude},${zillowData.geocode.longitude},3a,75y,0h,90t', '_blank')"
+                             title="View in Google Street View">🚶 Street View</button>` :
+                    ''}
             </div>
         </div>
     `;

@@ -583,11 +583,15 @@ function createPropertyCard(property) {
                     ${savingsPercent > 50 ? `<span class="metric-badge">💎 ${savingsPercent}% ROI</span>` : ''}
                 </div>
 
-                <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+                <div style="margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
                     <a href="https://www.waynecountytreasurermi.com/AuctionPropertyDetails.aspx?AI_ID=${property.auctionId}"
                        target="_blank" class="btn btn-small">View Auction</a>
                     ${hasZillow && zillow.zpid ?
                         `<a href="https://www.zillow.com/homedetails/${zillow.zpid}_zpid/" target="_blank" class="btn btn-small">View on Zillow</a>` :
+                        ''}
+                    ${hasZillow && zillow.geocode && zillow.geocode.latitude && zillow.geocode.longitude ?
+                        `<a href="https://www.google.com/maps/@${zillow.geocode.latitude},${zillow.geocode.longitude},3a,75y,0h,90t"
+                           target="_blank" class="btn btn-small" title="View in Google Street View">🚶 Street View</a>` :
                         ''}
                 </div>
             </div>
