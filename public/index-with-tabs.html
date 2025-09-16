@@ -77,6 +77,25 @@
             display: none;
         }
 
+        /* Responsive map height for larger screens */
+        @media (min-width: 1600px) {
+            #mapContainer {
+                height: 700px;
+            }
+        }
+
+        @media (min-width: 1920px) {
+            #mapContainer {
+                height: 800px;
+            }
+        }
+
+        @media (min-width: 2560px) {
+            #mapContainer {
+                height: 900px;
+            }
+        }
+
         /* Map Markers */
         .property-marker {
             position: relative;
@@ -214,6 +233,27 @@
             grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
             gap: 1.5rem;
             padding: 1rem 0;
+        }
+
+        /* More columns on larger screens */
+        @media (min-width: 1600px) {
+            .property-cards-grid {
+                grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            }
+        }
+
+        @media (min-width: 1920px) {
+            .property-cards-grid {
+                grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+                gap: 2rem;
+            }
+        }
+
+        @media (min-width: 2560px) {
+            .property-cards-grid {
+                grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+                gap: 2.5rem;
+            }
         }
 
         .property-card {

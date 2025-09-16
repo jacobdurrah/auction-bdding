@@ -12,12 +12,31 @@ body {
 }
 
 .container {
-    max-width: 1400px;
+    max-width: 90%;
     margin: 0 auto;
     background: white;
     border-radius: 12px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
     overflow: hidden;
+}
+
+/* Responsive container widths */
+@media (min-width: 1600px) {
+    .container {
+        max-width: 1500px;
+    }
+}
+
+@media (min-width: 1920px) {
+    .container {
+        max-width: 1800px;
+    }
+}
+
+@media (min-width: 2560px) {
+    .container {
+        max-width: 2400px;
+    }
 }
 
 header {
@@ -319,6 +338,17 @@ tr.has-bids {
     to {
         transform: translateX(0);
         opacity: 1;
+    }
+}
+
+/* Large screen optimizations */
+@media (min-width: 1600px) {
+    .table-container {
+        padding: 30px;
+    }
+
+    th, td {
+        padding: 14px;
     }
 }
 
