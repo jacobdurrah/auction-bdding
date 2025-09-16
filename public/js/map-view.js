@@ -59,7 +59,7 @@ function initializeMap() {
         maxClusterRadius: 60,
         spiderfyOnMaxZoom: true,
         showCoverageOnHover: false,
-        zoomToBoundsOnClick: true,
+        zoomToBoundsOnClick: false,
         iconCreateFunction: function(cluster) {
             const count = cluster.getChildCount();
             let size = 'small';
@@ -202,7 +202,7 @@ function createPropertyPopup(property, zillowData) {
                 <button class="btn btn-small popup-refresh-btn">Refresh</button>
                 ${zillowData?.geocode?.latitude && zillowData?.geocode?.longitude ?
                     `<button class="btn btn-small popup-streetview-btn"
-                             onclick="window.open('https://www.google.com/maps/@${zillowData.geocode.latitude},${zillowData.geocode.longitude},3a,75y,0h,90t', '_blank')"
+                             onclick="window.open('https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${zillowData.geocode.latitude},${zillowData.geocode.longitude}', '_blank')"
                              title="View in Google Street View">🚶 Street View</button>` :
                     ''}
             </div>
@@ -279,7 +279,7 @@ function toggleView(view) {
 function highlightProperty(auctionId) {
     const marker = markers.find(m => m.propertyData.auctionId === auctionId);
     if (marker) {
-        map.setView(marker.getLatLng(), 15);
+        // Just open popup without changing zoom
         marker.openPopup();
     }
 }

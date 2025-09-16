@@ -590,7 +590,7 @@ function createPropertyCard(property) {
                         `<a href="https://www.zillow.com/homedetails/${zillow.zpid}_zpid/" target="_blank" class="btn btn-small">View on Zillow</a>` :
                         ''}
                     ${hasZillow && zillow.geocode && zillow.geocode.latitude && zillow.geocode.longitude ?
-                        `<a href="https://www.google.com/maps/@${zillow.geocode.latitude},${zillow.geocode.longitude},3a,75y,0h,90t"
+                        `<a href="https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${zillow.geocode.latitude},${zillow.geocode.longitude}"
                            target="_blank" class="btn btn-small" title="View in Google Street View">🚶 Street View</a>` :
                         ''}
                 </div>
