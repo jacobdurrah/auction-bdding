@@ -12,7 +12,8 @@ let filters = {
     minBid: null,
     maxBid: null,
     minZestimate: null,
-    maxZestimate: null
+    maxZestimate: null,
+    watchlistOnly: false  // Add watchlist filter
 };
 
 let sortBy = 'savings-desc';
@@ -187,6 +188,14 @@ function populateZipCodes() {
 function applyFiltersAndSort() {
     // Start with all properties
     zillowFilteredProperties = [...auctionProperties];
+
+    // Apply watchlist filter
+    if (filters.watchlistOnly && window.Watchlist) {
+        const watchlist = window.Watchlist.getAll();
+        zillowFilteredProperties = zillowFilteredProperties.filter(prop =>
+            watchlist.includes(prop.auctionId)
+        );
+    }
 
     // Apply status filter
     if (filters.status !== 'all') {
@@ -408,7 +417,8 @@ function clearAllFilters() {
         minBid: null,
         maxBid: null,
         minZestimate: null,
-        maxZestimate: null
+        maxZestimate: null,
+        watchlistOnly: false
     };
 
     // Reset all inputs
@@ -499,12 +509,22 @@ function createPropertyCard(property) {
     // Get last sold date
     const lastSold = zillow?.lastSoldDate || zillow?.lastSold || null;
 
+    // Check if property is in watchlist
+    const isWatched = window.Watchlist && window.Watchlist.isInWatchlist(property.auctionId);
+
     return `
         <div class="property-card" data-auction-id="${property.auctionId}">
             ${hasZillow && zillow.imgSrc ?
                 `<img src="${zillow.imgSrc}" alt="${property.address}" class="property-image" onerror="this.onerror=null; this.className='property-image no-image'; this.innerHTML='🏠';">` :
                 `<div class="property-image no-image">🏠</div>`
             }
+
+            <!-- Watchlist button in top-right corner of image -->
+            <button class="watchlist-btn ${isWatched ? 'active' : ''}"
+                    onclick="toggleWatchlist('${property.auctionId}')"
+                    title="${isWatched ? 'Remove from Watchlist' : 'Add to Watchlist'}">
+                ${isWatched ? '⭐' : '☆'}
+            </button>
 
             <div class="property-body">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
@@ -575,9 +595,8 @@ function createPropertyCard(property) {
 
                 <div class="property-metrics-row">
                     <span class="competition-badge ${competitionClass}">
-                        ${competitionLevel} Competition
+                        ${competitionLevel} Competition (${bidChanges} ${bidChanges === 1 ? 'change' : 'changes'})
                     </span>
-                    ${bidChanges > 0 ? `<span class="metric-badge">📊 ${bidChanges} Bid Changes</span>` : ''}
                     ${schoolRating ? `<span class="metric-badge">🏫 School: ${schoolRating}/10</span>` : ''}
                     ${lastSold ? `<span class="metric-badge">🏷️ Last Sold: ${lastSold}</span>` : ''}
                     ${savingsPercent > 50 ? `<span class="metric-badge">💎 ${savingsPercent}% ROI</span>` : ''}
@@ -788,6 +807,80 @@ function showToast(message, type = 'success') {
     }
 }
 
-// Make refresh functions globally accessible
+// Watchlist functions
+function toggleWatchlist(auctionId) {
+    if (!window.Watchlist) {
+        console.error('Watchlist module not loaded');
+        return;
+    }
+
+    const isNowWatched = window.Watchlist.toggle(auctionId);
+
+    // Update button state for this property
+    const card = document.querySelector(`[data-auction-id="${auctionId}"]`);
+    if (card) {
+        const btn = card.querySelector('.watchlist-btn');
+        if (btn) {
+            btn.classList.toggle('active', isNowWatched);
+            btn.innerHTML = isNowWatched ? '⭐' : '☆';
+            btn.title = isNowWatched ? 'Remove from Watchlist' : 'Add to Watchlist';
+        }
+    }
+
+    // Update watchlist filter chip if it exists
+    updateWatchlistChip();
+}
+
+function updateWatchlistChip() {
+    if (!window.Watchlist) return;
+
+    const count = window.Watchlist.getCount();
+    const watchlistChip = document.getElementById('watchlistChip');
+    if (watchlistChip) {
+        const badge = watchlistChip.querySelector('.watchlist-count');
+        if (badge) {
+            badge.textContent = count;
+            badge.style.display = count > 0 ? 'inline-block' : 'none';
+        }
+    }
+}
+
+function toggleWatchlistFilter() {
+    filters.watchlistOnly = !filters.watchlistOnly;
+
+    // Update chip appearance
+    const watchlistChip = document.getElementById('watchlistChip');
+    if (watchlistChip) {
+        watchlistChip.classList.toggle('active', filters.watchlistOnly);
+    }
+
+    applyFiltersAndSort();
+
+    // Show appropriate message
+    if (filters.watchlistOnly) {
+        const count = window.Watchlist ? window.Watchlist.getCount() : 0;
+        if (count === 0) {
+            showToast('No properties in watchlist');
+        } else {
+            showToast(`Showing ${count} watchlist properties`);
+        }
+    } else {
+        showToast('Showing all properties');
+    }
+}
+
+// Listen for watchlist changes
+window.addEventListener('watchlistChanged', (event) => {
+    updateWatchlistChip();
+
+    // If watchlist filter is active, reapply filters
+    if (filters.watchlistOnly) {
+        applyFiltersAndSort();
+    }
+});
+
+// Make functions globally accessible
 window.refreshProperty = refreshProperty;
 window.refreshAllAuctionData = refreshAllAuctionData;
+window.toggleWatchlist = toggleWatchlist;
+window.toggleWatchlistFilter = toggleWatchlistFilter;

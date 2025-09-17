@@ -161,7 +161,9 @@ function createPropertyMarker(property) {
 // Create popup content for property
 function createPropertyPopup(property, zillowData) {
     const closingTime = formatClosingTime(property.biddingCloses);
-    const zestimate = zillowData?.zestimate ? `$${zillowData.zestimate.toLocaleString()}` : 'N/A';
+    // Use zestimate if available, otherwise use price, otherwise N/A
+    const zestimate = zillowData?.zestimate ? `$${zillowData.zestimate.toLocaleString()}` :
+                     zillowData?.price ? `$${zillowData.price.toLocaleString()}` : 'N/A';
     const rentEstimate = zillowData?.rentZestimate ? `$${zillowData.rentZestimate.toLocaleString()}/mo` : 'N/A';
     const bidStatus = property.hasBids ?
         `<span class="status-badge has-bids">Has Bids</span>` :

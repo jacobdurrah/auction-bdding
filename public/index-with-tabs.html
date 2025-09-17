@@ -604,10 +604,92 @@
             flex-wrap: wrap;
             align-items: center;
         }
+
+        /* Watchlist Button Styles */
+        .watchlist-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 1.3rem;
+            z-index: 10;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            padding: 0;
+        }
+
+        .watchlist-btn:hover {
+            transform: scale(1.1);
+            background: #fffbf0;
+            border-color: #ffc107;
+        }
+
+        .watchlist-btn.active {
+            background: #ffc107;
+            border-color: #ff9800;
+            animation: star-pulse 0.3s ease;
+        }
+
+        @keyframes star-pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        /* Watchlist Filter Chip */
+        .filter-chip {
+            padding: 0.4rem 0.8rem;
+            background: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .watchlist-chip {
+            background: #fff3cd;
+            border-color: #ffc107;
+            color: #856404;
+            font-weight: 500;
+        }
+
+        .watchlist-chip:hover {
+            background: #ffeaa7;
+            transform: translateY(-1px);
+        }
+
+        .watchlist-chip.active {
+            background: #ffc107;
+            color: #000;
+            border-color: #ff9800;
+            font-weight: 600;
+        }
+
+        .property-card {
+            position: relative;
+        }
     </style>
 </head>
 <body>
     <div class="container">
+        <!-- Last Refresh Indicator -->
+        <div id="lastRefreshBar" style="background: #fff3cd; border: 1px solid #ffc107; padding: 10px 20px; margin-bottom: 15px; border-radius: 8px; display: none; align-items: center; justify-content: center; gap: 10px;">
+            <span style="font-size: 16px;">📊</span>
+            <span style="color: #856404; font-weight: 500;">Data Last Updated: <strong id="lastRefreshTime">Loading...</strong></span>
+        </div>
+
         <header>
             <h1>🏠 Wayne County Auction Properties</h1>
             <div style="text-align: center; margin: 10px 0;">
@@ -770,8 +852,13 @@
                 </div>
 
                 <div class="filter-status">
-                    <div id="activeFilters"></div>
-                    <div id="resultsCount">Showing 0 properties</div>
+                    <!-- Watchlist Filter Chip - Outside activeFilters to prevent clearing -->
+                    <button id="watchlistChip" class="filter-chip watchlist-chip" onclick="toggleWatchlistFilter()" style="margin-right: 10px;">
+                        ⭐ Watchlist
+                        <span class="watchlist-count" style="display: none; background: rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 10px; margin-left: 4px; font-size: 0.85em;">0</span>
+                    </button>
+                    <div id="activeFilters" style="display: inline-flex; gap: 0.5rem; flex-wrap: wrap;"></div>
+                    <div id="resultsCount" style="margin-left: auto;">Showing 0 properties</div>
                 </div>
             </div>
 
@@ -807,8 +894,24 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 
+    <script src="/js/watchlist.js"></script>
     <script src="/js/app.js"></script>
     <script src="/js/zillow-tab.js"></script>
     <script src="/js/map-view.js"></script>
+
+    <!-- Initialize watchlist on page load -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Update watchlist count on page load
+            if (window.Watchlist) {
+                const count = window.Watchlist.getCount();
+                const badge = document.querySelector('#watchlistChip .watchlist-count');
+                if (badge) {
+                    badge.textContent = count;
+                    badge.style.display = count > 0 ? 'inline-block' : 'none';
+                }
+            }
+        });
+    </script>
 </body>
 </html>

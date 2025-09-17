@@ -92,7 +92,42 @@ async function loadProperties() {
             applyFilters();
             updateStats();
 
-            // Show last updated time if available
+            // Display last refresh time from file modification date
+            if (data.lastModified) {
+                const lastModified = new Date(data.lastModified);
+                const now = new Date();
+                const diffMs = now - lastModified;
+                const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+                let timeAgo = '';
+                if (diffHours > 0) {
+                    timeAgo = `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+                } else if (diffMinutes > 0) {
+                    timeAgo = `${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''} ago`;
+                } else {
+                    timeAgo = 'just now';
+                }
+
+                const formattedDate = lastModified.toLocaleString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                });
+
+                // Update the refresh bar if it exists
+                const refreshTimeEl = document.getElementById('lastRefreshTime');
+                const refreshBarEl = document.getElementById('lastRefreshBar');
+                if (refreshTimeEl && refreshBarEl) {
+                    refreshTimeEl.textContent = `${formattedDate} (${timeAgo})`;
+                    refreshBarEl.style.display = 'flex';
+                }
+            }
+
+            // Show last updated time if available (fallback)
             if (data.lastUpdated) {
                 lastUpdate.textContent = `Updated: ${new Date(data.lastUpdated).toLocaleString()}`;
             }

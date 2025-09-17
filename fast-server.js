@@ -77,10 +77,21 @@ app.get('/', (req, res) => {
 app.get('/api/properties', async (req, res) => {
     try {
         const properties = await loadProperties();
+
+        // Get last modified time of properties.json
+        let lastModified = null;
+        try {
+            const stats = await fs.stat(path.join(DATA_DIR, 'properties.json'));
+            lastModified = stats.mtime;
+        } catch (error) {
+            console.log('Could not get file stats');
+        }
+
         res.json({
             success: true,
             count: properties.length,
-            properties: properties
+            properties: properties,
+            lastModified: lastModified
         });
     } catch (error) {
         res.status(500).json({
@@ -326,30 +337,90 @@ app.get('/api/analytics/summary', async (req, res) => {
         const properties = await loadProperties();
         const zillowData = await loadZillowData();
 
-        // Merge properties with Zillow data
+        // Load geocoded data
+        let geocodeData = {};
+        try {
+            const geocodeFile = path.join(DATA_DIR, 'geocoded-properties.json');
+            const geocodeContent = await fs.readFile(geocodeFile, 'utf8');
+            geocodeData = JSON.parse(geocodeContent);
+        } catch (error) {
+            console.log('No geocode data available');
+        }
+
+        // Merge properties with Zillow and geocode data
         const mergedProperties = properties.map(prop => {
             const addressKey = getAddressKey(prop.address, prop.city);
             const zillow = zillowData[addressKey];
+            const geocode = geocodeData[addressKey];
 
             // Fix bid status - if currentBid is "NONE", set hasBids to false
             const hasBids = prop.currentBid && prop.currentBid !== 'NONE';
+
+            // Calculate competition level more accurately
+            let competitionLevel = 'LOW';
+            if (hasBids) {
+                if (prop.currentBidNumeric && prop.minimumBidNumeric) {
+                    const bidIncrease = (prop.currentBidNumeric - prop.minimumBidNumeric) / prop.minimumBidNumeric;
+                    if (bidIncrease > 0.5) competitionLevel = 'HIGH';
+                    else if (bidIncrease > 0.2) competitionLevel = 'MEDIUM';
+                    else competitionLevel = 'MEDIUM';
+                } else {
+                    competitionLevel = 'MEDIUM';
+                }
+            }
+
+            // Calculate ROI and metrics
+            const roi = zillow && zillow.zestimate ?
+                Math.round(((zillow.zestimate - prop.minimumBidNumeric) / prop.minimumBidNumeric * 100)) : 0;
+            const potentialProfit = zillow && zillow.zestimate ?
+                (zillow.zestimate - prop.minimumBidNumeric) : 0;
+            const monthlyRentYield = zillow && zillow.rentZestimate ?
+                (zillow.rentZestimate / prop.minimumBidNumeric * 100) : 0;
+
+            // Create links
+            const links = {
+                auction: `https://www.waynecountytreasurermi.com/AuctionPropertyDetails.aspx?AI_ID=${prop.auctionId}`,
+                zillow: zillow && zillow.hdpUrl ? zillow.hdpUrl : null,
+                streetView: geocode && geocode.latitude && geocode.longitude ?
+                    `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${geocode.latitude},${geocode.longitude}` :
+                    null
+            };
+
+            // Get property image
+            const images = {
+                primary: zillow && zillow.imgSrc ? zillow.imgSrc : null,
+                streetView: zillow && zillow.streetView ? zillow.streetView : null
+            };
 
             return {
                 ...prop,
                 hasBids,
                 zillow: zillow && !zillow.notFound ? zillow : null,
+                geocode: geocode && geocode.latitude ? geocode : null,
+                images,
+                links,
                 analytics: {
                     overallScore: calculateScore(prop, zillow),
-                    isHiddenGem: !hasBids && zillow && (zillow.zestimate > prop.minimumBidNumeric * 2),
-                    competitionLevel: hasBids ? 'HIGH' : 'LOW',
+                    isHiddenGem: !hasBids && roi > 200,
+                    isHotProperty: hasBids && competitionLevel === 'HIGH',
+                    competitionLevel,
                     recommendation: getRecommendation(prop, zillow),
+                    metrics: {
+                        roi,
+                        potentialProfit: Math.round(potentialProfit),
+                        monthlyRentYield: Math.round(monthlyRentYield * 10) / 10,
+                        pricePerSqFt: zillow && zillow.livingArea ?
+                            Math.round(prop.minimumBidNumeric / zillow.livingArea) : null
+                    },
                     strategy: {
                         profit: {
-                            roi: zillow && zillow.zestimate ?
-                                ((zillow.zestimate - prop.minimumBidNumeric) / prop.minimumBidNumeric * 100) : 0
+                            roi,
+                            potential: potentialProfit,
+                            rating: roi > 200 ? 'Excellent' : roi > 100 ? 'Good' : roi > 50 ? 'Fair' : 'Poor'
                         },
                         competition: {
-                            score: hasBids ? 70 : 30
+                            level: competitionLevel,
+                            score: competitionLevel === 'LOW' ? 30 : competitionLevel === 'MEDIUM' ? 60 : 90
                         }
                     }
                 }
@@ -360,27 +431,59 @@ app.get('/api/analytics/summary', async (req, res) => {
         const stats = {
             total: mergedProperties.length,
             withBids: mergedProperties.filter(p => p.hasBids).length,
+            withoutBids: mergedProperties.filter(p => !p.hasBids).length,
             withZillow: mergedProperties.filter(p => p.zillow).length,
+            withGeocode: mergedProperties.filter(p => p.geocode).length,
+            withImages: mergedProperties.filter(p => p.images?.primary).length,
             competition: {
-                low: mergedProperties.filter(p => !p.hasBids).length,
-                high: mergedProperties.filter(p => p.hasBids).length
-            }
+                low: mergedProperties.filter(p => p.analytics.competitionLevel === 'LOW').length,
+                medium: mergedProperties.filter(p => p.analytics.competitionLevel === 'MEDIUM').length,
+                high: mergedProperties.filter(p => p.analytics.competitionLevel === 'HIGH').length
+            },
+            priceRanges: {
+                under1k: mergedProperties.filter(p => p.minimumBidNumeric < 1000).length,
+                under5k: mergedProperties.filter(p => p.minimumBidNumeric < 5000).length,
+                under10k: mergedProperties.filter(p => p.minimumBidNumeric < 10000).length,
+                over10k: mergedProperties.filter(p => p.minimumBidNumeric >= 10000).length
+            },
+            averageMinBid: Math.round(
+                mergedProperties.reduce((sum, p) => sum + p.minimumBidNumeric, 0) / mergedProperties.length
+            )
         };
 
+        // Get last modified time of properties.json
+        let lastModified = null;
+        try {
+            const statsFile = await fs.stat(path.join(DATA_DIR, 'properties.json'));
+            lastModified = statsFile.mtime;
+        } catch (error) {
+            console.log('Could not get file stats');
+        }
+
         res.json({
+            success: true,
             properties: mergedProperties,
             stats,
             hiddenGems: mergedProperties.filter(p => p.analytics.isHiddenGem),
             lastUpdate: new Date().toISOString(),
+            lastModified: lastModified,
             summary: {
                 totalProperties: stats.total,
                 propertiesWithBids: stats.withBids,
-                propertiesWithZillow: stats.withZillow
+                propertiesWithZillow: stats.withZillow,
+                propertiesWithImages: stats.withImages,
+                averageScore: Math.round(
+                    mergedProperties.reduce((sum, p) => sum + p.analytics.overallScore, 0) / mergedProperties.length
+                )
             }
         });
     } catch (error) {
         console.error('Error in analytics summary:', error);
-        res.status(500).json({ error: 'Failed to load analytics data' });
+        res.status(500).json({
+            success: false,
+            error: 'Failed to load analytics data',
+            message: error.message
+        });
     }
 });
 
