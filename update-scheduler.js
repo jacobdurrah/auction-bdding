@@ -16,10 +16,10 @@ class UpdateScheduler {
         
         // Update intervals based on urgency
         this.intervals = {
-            immediate: 1 * 60 * 1000,       // 1 minute for properties closing in < 1 hour
-            urgent: 5 * 60 * 1000,          // 5 minutes for properties closing in 1-3 hours
-            regular: 10 * 60 * 1000,        // 10 minutes for properties closing in 3-6 hours
-            standard: 60 * 60 * 1000        // 1 hour for all others
+            immediate: 30 * 1000,           // 30 seconds for properties closing soon
+            urgent: 2 * 60 * 1000,          // 2 minutes for properties closing in 1-3 hours
+            regular: 5 * 60 * 1000,         // 5 minutes for properties closing in 3-6 hours
+            standard: 30 * 60 * 1000        // 30 minutes for all others
         };
         
         this.activeJobs = new Map();
@@ -70,19 +70,20 @@ class UpdateScheduler {
     // Determine update priority based on closing time
     getUpdatePriority(closingTime) {
         const now = new Date();
-        const closing = new Date(closingTime);
+        // Remove ' ET' suffix that causes parsing issues
+        const closing = new Date(closingTime.replace(' ET', ''));
         const hoursUntilClosing = (closing - now) / (1000 * 60 * 60);
 
         if (hoursUntilClosing <= 0) {
             return { priority: 'expired', interval: null };
+        } else if (hoursUntilClosing <= 0.25) {
+            return { priority: 'immediate', interval: this.intervals.immediate };  // < 15 minutes: every 30 seconds
         } else if (hoursUntilClosing <= 1) {
-            return { priority: 'immediate', interval: this.intervals.immediate };  // < 1 hour: every minute
-        } else if (hoursUntilClosing <= 3) {
-            return { priority: 'urgent', interval: this.intervals.urgent };        // 1-3 hours: every 5 minutes
+            return { priority: 'urgent', interval: this.intervals.urgent };        // 15-60 minutes: every 2 minutes
         } else if (hoursUntilClosing <= 6) {
-            return { priority: 'regular', interval: this.intervals.regular };      // 3-6 hours: every 10 minutes
+            return { priority: 'regular', interval: this.intervals.regular };      // 1-6 hours: every 5 minutes
         } else {
-            return { priority: 'standard', interval: this.intervals.standard };    // > 6 hours: every hour
+            return { priority: 'standard', interval: this.intervals.standard };    // > 6 hours: every 30 minutes
         }
     }
 
@@ -279,10 +280,10 @@ class UpdateScheduler {
         });
         
         console.log('\nProperty distribution:');
-        console.log(`  🔴 Immediate (< 1hr): ${priorityGroups.immediate.length}`);
-        console.log(`  🟠 Urgent (< 6hr): ${priorityGroups.urgent.length}`);
-        console.log(`  🟡 Regular (< 24hr): ${priorityGroups.regular.length}`);
-        console.log(`  🟢 Standard (> 24hr): ${priorityGroups.standard.length}`);
+        console.log(`  🔴 Immediate (< 15min): ${priorityGroups.immediate.length}`);
+        console.log(`  🟠 Urgent (15-60min): ${priorityGroups.urgent.length}`);
+        console.log(`  🟡 Regular (1-6hr): ${priorityGroups.regular.length}`);
+        console.log(`  🟢 Standard (> 6hr): ${priorityGroups.standard.length}`);
         console.log(`  ⚫ Expired: ${priorityGroups.expired.length}`);
         
         // Schedule jobs for each priority level
@@ -368,6 +369,13 @@ class UpdateScheduler {
         // Schedule recurring updates
         if (enableScheduling) {
             await this.scheduleUpdates();
+
+            // Add periodic rescheduling to move properties between priority buckets
+            setInterval(async () => {
+                console.log('\n🔄 Re-evaluating property priorities...');
+                this.stopAllJobs();
+                await this.scheduleUpdates();
+            }, 10 * 60 * 1000);  // Re-evaluate every 10 minutes
         }
         
         // Set up process handlers

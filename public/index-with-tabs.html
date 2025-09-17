@@ -680,6 +680,39 @@
         .property-card {
             position: relative;
         }
+
+        /* Auto-refresh toggle button styles */
+        .btn-toggle {
+            padding: 0.5rem 1rem;
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background 0.3s, transform 0.2s;
+        }
+
+        .btn-toggle:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-toggle.active {
+            background: #28a745;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+
+        .countdown-display {
+            margin-left: 0.5rem;
+            font-size: 0.9rem;
+            color: #666;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -718,6 +751,10 @@
                         <span class="spinner hidden"></span>
                     </button>
                     <button id="exportBtn" class="btn btn-secondary">Export CSV</button>
+                    <button id="autoRefreshToggle" class="btn btn-toggle" onclick="toggleAutoRefresh()">
+                        🔄 Auto-Refresh: OFF
+                    </button>
+                    <span id="refreshCountdown" class="countdown-display"></span>
                 </div>
 
                 <div class="control-group">
@@ -779,6 +816,10 @@
             <div class="details-controls">
                 <button id="refreshAuctionBtn" class="btn btn-primary">🔄 Refresh All Auction Data</button>
                 <button id="fetchZillowBtn" class="btn btn-primary">Fetch Zillow Data</button>
+                <button id="autoRefreshToggle2" class="btn btn-toggle" onclick="toggleAutoRefresh()">
+                    🔄 Auto-Refresh: OFF
+                </button>
+                <span id="refreshCountdown2" class="countdown-display"></span>
                 <span id="zillowStatus"></span>
             </div>
 
@@ -895,6 +936,7 @@
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 
     <script src="/js/watchlist.js"></script>
+    <script src="/js/watchlist-console-helpers.js"></script>
     <script src="/js/app.js"></script>
     <script src="/js/zillow-tab.js"></script>
     <script src="/js/map-view.js"></script>

@@ -6,6 +6,12 @@ const itemsPerPage = 50;
 let sortColumn = 'biddingCloses';
 let sortDirection = 'asc';
 
+// Auto-refresh state
+let autoRefreshInterval = null;
+let autoRefreshEnabled = false;
+let refreshCountdown = 30; // seconds
+let countdownInterval = null;
+
 // DOM Elements
 const refreshBtn = document.getElementById('refreshBtn');
 const exportBtn = document.getElementById('exportBtn');
@@ -383,12 +389,192 @@ function showToast(message, type = 'info') {
     }, 3000);
 }
 
-// Setup auto-refresh (optional)
-function setupAutoRefresh() {
-    const autoRefreshMinutes = 15; // Change this to adjust refresh interval
+// Save current UI state to sessionStorage
+function saveUIState() {
+    const state = {
+        scrollPosition: window.pageYOffset,
+        searchTerm: searchInput.value,
+        bidFilter: bidFilter.value,
+        minPrice: minPrice.value,
+        maxPrice: maxPrice.value,
+        sortColumn: sortColumn,
+        sortDirection: sortDirection,
+        currentPage: currentPage,
+        watchlistFilter: document.querySelector('.watchlist-chip')?.classList.contains('active') || false
+    };
+    sessionStorage.setItem('propertyDetailsState', JSON.stringify(state));
+}
 
-    // Uncomment to enable auto-refresh
-    // setInterval(() => {
-    //     loadProperties();
-    // }, autoRefreshMinutes * 60 * 1000);
+// Restore UI state from sessionStorage
+function restoreUIState() {
+    const savedState = sessionStorage.getItem('propertyDetailsState');
+    if (!savedState) return;
+
+    const state = JSON.parse(savedState);
+
+    // Restore form values
+    searchInput.value = state.searchTerm || '';
+    bidFilter.value = state.bidFilter || 'all';
+    minPrice.value = state.minPrice || '';
+    maxPrice.value = state.maxPrice || '';
+
+    // Restore sort settings
+    sortColumn = state.sortColumn || 'biddingCloses';
+    sortDirection = state.sortDirection || 'asc';
+    currentPage = state.currentPage || 1;
+
+    // Restore watchlist filter
+    const watchlistChip = document.querySelector('.watchlist-chip');
+    if (watchlistChip && state.watchlistFilter) {
+        watchlistChip.classList.add('active');
+    }
+
+    // Restore scroll position after a brief delay
+    setTimeout(() => {
+        window.scrollTo(0, state.scrollPosition || 0);
+    }, 100);
+}
+
+// Smart properties refresh that preserves state
+async function smartRefreshProperties() {
+    // Save current state before refresh
+    saveUIState();
+
+    try {
+        const response = await fetch('/api/properties');
+        const data = await response.json();
+
+        if (data.success) {
+            // Store old properties for comparison
+            const oldPropertiesMap = new Map(allProperties.map(p => [p.auctionId, p]));
+
+            // Update properties
+            allProperties = data.properties;
+
+            // Check for bid changes
+            let changedProperties = [];
+            allProperties.forEach(prop => {
+                const oldProp = oldPropertiesMap.get(prop.auctionId);
+                if (oldProp && oldProp.currentBid !== prop.currentBid) {
+                    changedProperties.push(prop.auctionId);
+                }
+            });
+
+            // Apply filters without resetting state
+            applyFilters();
+            updateStats();
+
+            // Restore UI state
+            restoreUIState();
+
+            // Show notification if there were changes
+            if (changedProperties.length > 0) {
+                showToast(`✅ Updated! ${changedProperties.length} properties have new bids`, 'success');
+            }
+
+            // Update last refresh timestamp
+            if (data.lastUpdated) {
+                lastUpdate.textContent = `Updated: ${new Date(data.lastUpdated).toLocaleString()}`;
+            }
+        }
+    } catch (error) {
+        console.error('Error refreshing properties:', error);
+    }
+}
+
+// Toggle auto-refresh
+function toggleAutoRefresh() {
+    autoRefreshEnabled = !autoRefreshEnabled;
+
+    // Update both toggle buttons if they exist
+    const toggleBtn1 = document.getElementById('autoRefreshToggle');
+    const toggleBtn2 = document.getElementById('autoRefreshToggle2');
+    const countdownDisplay1 = document.getElementById('refreshCountdown');
+    const countdownDisplay2 = document.getElementById('refreshCountdown2');
+
+    if (autoRefreshEnabled) {
+        // Start auto-refresh
+        if (toggleBtn1) {
+            toggleBtn1.classList.add('active');
+            toggleBtn1.innerHTML = '🔄 Auto-Refresh: ON';
+        }
+        if (toggleBtn2) {
+            toggleBtn2.classList.add('active');
+            toggleBtn2.innerHTML = '🔄 Auto-Refresh: ON';
+        }
+        localStorage.setItem('autoRefreshEnabled', 'true');
+
+        // Reset countdown
+        refreshCountdown = 30;
+
+        // Start countdown interval
+        countdownInterval = setInterval(() => {
+            refreshCountdown--;
+            if (countdownDisplay1) {
+                countdownDisplay1.textContent = `(${refreshCountdown}s)`;
+            }
+            if (countdownDisplay2) {
+                countdownDisplay2.textContent = `(${refreshCountdown}s)`;
+            }
+
+            if (refreshCountdown <= 0) {
+                smartRefreshProperties();
+                refreshCountdown = 30;
+            }
+        }, 1000);
+
+        // Start refresh interval (backup)
+        autoRefreshInterval = setInterval(() => {
+            smartRefreshProperties();
+            refreshCountdown = 30;
+        }, 30000);
+
+    } else {
+        // Stop auto-refresh
+        if (toggleBtn1) {
+            toggleBtn1.classList.remove('active');
+            toggleBtn1.innerHTML = '🔄 Auto-Refresh: OFF';
+        }
+        if (toggleBtn2) {
+            toggleBtn2.classList.remove('active');
+            toggleBtn2.innerHTML = '🔄 Auto-Refresh: OFF';
+        }
+        localStorage.setItem('autoRefreshEnabled', 'false');
+
+        // Clear intervals
+        if (countdownInterval) {
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+        }
+        if (autoRefreshInterval) {
+            clearInterval(autoRefreshInterval);
+            autoRefreshInterval = null;
+        }
+
+        if (countdownDisplay1) {
+            countdownDisplay1.textContent = '';
+        }
+        if (countdownDisplay2) {
+            countdownDisplay2.textContent = '';
+        }
+    }
+}
+
+// Setup auto-refresh
+function setupAutoRefresh() {
+    // Check if auto-refresh was previously enabled
+    const wasEnabled = localStorage.getItem('autoRefreshEnabled') === 'true';
+
+    // Only auto-enable on Property Details tab
+    const isPropertyDetailsTab = document.getElementById('auctionTab')?.classList.contains('active');
+
+    if (wasEnabled && isPropertyDetailsTab) {
+        // Wait a moment for DOM to be ready
+        setTimeout(() => {
+            const toggleBtn = document.getElementById('autoRefreshToggle');
+            if (toggleBtn) {
+                toggleAutoRefresh();
+            }
+        }, 500);
+    }
 }

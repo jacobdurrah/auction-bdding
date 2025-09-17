@@ -130,6 +130,109 @@ const Watchlist = (function() {
         }, 3000);
     }
 
+    // Export watchlist to JSON string
+    function exportToJSON() {
+        const watchlist = load();
+        return JSON.stringify(watchlist, null, 2);
+    }
+
+    // Export watchlist and download as file
+    function exportToFile() {
+        const watchlist = load();
+        const dataStr = JSON.stringify(watchlist, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(dataBlob);
+
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `watchlist_${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        showToast(`Watchlist exported (${watchlist.length} properties)`);
+    }
+
+    // Import watchlist from JSON string
+    function importFromJSON(jsonString, merge = false) {
+        try {
+            const newItems = JSON.parse(jsonString);
+            if (!Array.isArray(newItems)) {
+                throw new Error('Invalid watchlist format');
+            }
+
+            if (merge) {
+                // Merge with existing
+                const current = load();
+                const merged = [...new Set([...current, ...newItems])];
+                save(merged);
+                showToast(`Merged ${newItems.length} items (${merged.length} total)`);
+                return merged;
+            } else {
+                // Replace existing
+                save(newItems);
+                showToast(`Imported ${newItems.length} properties`);
+                return newItems;
+            }
+        } catch (error) {
+            console.error('Import error:', error);
+            showToast('Error importing watchlist', 'error');
+            return null;
+        }
+    }
+
+    // Import from file input
+    function importFromFile(file, merge = false) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            importFromJSON(e.target.result, merge);
+        };
+        reader.readAsText(file);
+    }
+
+    // Copy watchlist to clipboard
+    function copyToClipboard() {
+        const watchlist = load();
+        const jsonString = JSON.stringify(watchlist);
+
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(jsonString).then(() => {
+                showToast(`Copied ${watchlist.length} properties to clipboard`);
+            }).catch(() => {
+                // Fallback
+                prompt('Copy this watchlist:', jsonString);
+            });
+        } else {
+            prompt('Copy this watchlist:', jsonString);
+        }
+    }
+
+    // Load from URL parameters
+    function loadFromURL() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const watchlistParam = urlParams.get('watchlist');
+
+        if (watchlistParam) {
+            try {
+                const items = watchlistParam.split(',');
+                return items;
+            } catch (error) {
+                console.error('Error parsing URL watchlist:', error);
+            }
+        }
+        return null;
+    }
+
+    // Generate shareable URL
+    function getShareableURL() {
+        const watchlist = load();
+        const baseURL = window.location.origin + window.location.pathname;
+        const params = new URLSearchParams();
+        params.set('watchlist', watchlist.join(','));
+        return `${baseURL}?${params.toString()}`;
+    }
+
     // Public API
     return {
         add,
@@ -139,7 +242,14 @@ const Watchlist = (function() {
         getAll,
         getCount,
         clear,
-        load
+        load,
+        exportToJSON,
+        exportToFile,
+        importFromJSON,
+        importFromFile,
+        copyToClipboard,
+        loadFromURL,
+        getShareableURL
     };
 })();
 
